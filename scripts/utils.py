@@ -5,14 +5,16 @@ arabic_letters = {
     'B': 'ب',
     'C': 'ج',
     'D': 'د',
-    'E': 'هـ',
+    'E': 'ه',
     'F': 'و',
     'G': 'ز',
     'H': 'ح',
     'I': 'ط',
     'J': 'ي',
-    'K': 'ك'
-}
+    'K': 'ك',
+    'هـ': 'ه',
+    'ا': 'أ'
+}   
 
 def translate_numbers(text: str) -> str:
     english_to_arabic = {
@@ -25,8 +27,16 @@ def translate_numbers(text: str) -> str:
 
 
 def mcq_eval(pred: str, gt: str):
-    pred = arabic_letters.get(pred.strip()[0], pred.strip()[0])
-    gt = arabic_letters.get(gt.strip()[0], gt.strip()[0])
+    pred = pred.strip()
+    gt = gt.strip()
+    if len(pred) > 2 and pred[0] == '(' and pred[2] == ')':
+        pred = pred[1]
+    if len(gt) > 2 and gt[0] == '(' and gt[2] == ')':
+        gt = gt[1]
+    pred = pred[0]
+    gt = gt[0]
+    pred = arabic_letters.get(pred, pred)
+    gt = arabic_letters.get(gt, gt)
     return pred == gt
 
 def create_options_prompt(row_data, option_candidate):
@@ -233,4 +243,87 @@ def seed_doc_to_text(doc):
     return f"{question}\nأجب بحرف الخيار من الاختيارات المعطاة مباشرة."
 
 def seed_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def hallucinationmmt_doc_to_text(doc):
+    return mmt_doc_to_text(doc)
+
+def hallucinationmmt_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def vqammt_doc_to_text(doc):
+    return mmt_doc_to_text(doc)
+
+def vqammt_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+
+
+def mutliimagemmt_doc_to_text(doc):
+    return mmt_doc_to_text(doc)
+
+def mutliimagemmt_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+
+def our_options_to_str(options):
+    option_prompt_str = ""
+    for i, option in enumerate(options):
+        option_choice = chr(ord("A") + i)
+        option_choice = arabic_letters[option_choice]
+        option_prompt_str += f"{option_choice}. {option}\n"
+
+    option_prompt_str = option_prompt_str.rstrip("\n")
+    return option_prompt_str
+
+def our_doc_to_text(doc):
+    question_text = "سؤال:\n" + doc["question"].strip()
+    options = our_options_to_str(doc["options"])
+    options_text = "\n".join(options) if options else ""
+    formatted_question = f"{question_text}\n{options_text}"
+    post_prompt = "\nأجب عن السؤال باستخدام حرف واحد من الخيارات المعطاة."
+    formatted_question = f"{formatted_question}{post_prompt}"
+    return formatted_question
+
+
+def isidocvqa_doc_to_text(doc):
+    return our_doc_to_text(doc)
+
+def isidocvqa_eval(pred, gt):
+    return mcq_eval(pred, gt) 
+
+def patddocvqa_doc_to_text(doc):
+    return our_doc_to_text(doc)
+
+def patddocvqa_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def celebvqa_doc_to_text(doc):
+    return our_doc_to_text(doc)
+
+def celebvqa_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def countriesvqa_doc_to_text(doc):
+    return our_doc_to_text(doc)
+
+def countriesvqa_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def foodvqa_doc_to_text(doc):
+    return our_doc_to_text(doc)
+
+def foodvqa_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def objectcoco_doc_to_text(doc):
+    return doc['question']
+
+def objectcoco_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def blink_doc_to_text(doc):
+    return doc['question']
+
+def blink_eval(pred, gt):
     return mcq_eval(pred, gt)
