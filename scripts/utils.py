@@ -451,3 +451,50 @@ def ocrisi_eval(pred: str, gt: str):
     pred = pred.strip()
     gt = gt.strip()
     return cer(pred, gt) <= 0.1
+
+def evarest_doc_to_text(doc):
+    return doc['question']
+
+def evarest_eval(pred: str, gt: str):
+    pred = pred.strip()
+    gt = gt.strip()
+    return cer(pred, gt) <= 0.1
+
+def historicalbooks_doc_to_text(doc):
+    return doc['question']
+
+def historicalbooks_eval(pred: str, gt: str):
+    pred = pred.strip()
+    gt = gt.strip()
+    return cer(pred, gt) <= 0.4
+
+def khatt_doc_to_text(doc):
+    return doc['question']
+
+def khatt_eval(pred: str, gt: str):
+    pred = pred.strip()
+    gt = gt.strip()
+    return cer(pred, gt) <= 0.3
+
+def patsocr_doc_to_text(doc):
+    return doc['question']
+
+def patsocr_eval(pred: str, gt: str):
+    pred = pred.strip()
+    gt = gt.strip()
+    return cer(pred, gt) <= 0.1
+
+def arabicocr_doc_to_text(doc):
+    return doc['question']
+
+def arabicocr_eval(pred: str, gt: str):
+    pred = pred.strip()
+    gt = gt.strip()
+    return cer(pred, gt) <= 0.4
+
+
+def culturevideovqa_doc_to_text(doc):
+    return doc['question']
+
+def culturevideovqa_eval(pred, gt):
+    return mcq_eval(pred, gt)
