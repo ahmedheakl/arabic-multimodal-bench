@@ -1,67 +1,123 @@
-import ollama
-import pandas as pd
 import json
 from tqdm import tqdm
-import arabic_reshaper
-from bidi.algorithm import get_display
-from utils import iconqa_doc_to_text
+from pydantic import BaseModel
+from openai import OpenAI
+from typing import List
+import multiprocessing as mp
+import os
 
-def display_ar(text):
-    reshaped_text = arabic_reshaper.reshape(text)
-    return get_display(reshaped_text)
+from dotenv import load_dotenv
 
-def generate(text):
-    response = ollama.chat(model="qwen2.5:3b-instruct-fp16", messages=[
+load_dotenv()
+
+
+
+class AnswerScore(BaseModel):
+    score: int
+
+def eval_gpt(row):
+    client = OpenAI(
+        api_key=os.getenv("OPENAI_API_KEY"),
+    )
+    question = row['question'].split("\n")[0]
+    pred = row['pred_answer']
+    gt = row['answer']
+    
+    messages = [
         {
-            'role': 'user',
-            'content': text
-        }
-    ], options=ollama.Options(temperature=1))
-    return response['message']['content']
+            "role": "system",
+            "content": """You are an expert in natural language understanding and semantic similarity. Your task is to evaluate the semantic similarity between two given sentences: a predicted answer and a ground truth answer. You should output a score of 1 if the sentences are semantically similar, and 0 if they are not.""",
+        },
+        {
+            "role": "user",
+            "content": f"""Here are three examples to guide your evaluation:
+Example 1:
+Question: "ما هي اللغة المستخدمة في النص؟"
+Predicted Answer: "العربية"
+Ground Truth: "اللغة العربية"
+Score: 1
 
-def evaluate_answer(pred_answer, true_answer, question):
-    prompt = f"""
-I will give you a question, a predicted answer, and a true answer. Your task is to determine if the predicted answer is correct based on the true answer. 
-Please respond with 1 if the predicted answer matches the true answer, or 0 if it doesn't. Here's an example:
+Example 2:
+Question: "ما هو موضوع النص؟"
+Predicted Answer: "إثنان"
+Ground Truth: "الحب و الكراهية"
+Score: 0
 
-Example:
-Question: What is the capital of France?
-Predicted Answer: Paris
-True Answer: Paris
-Evaluation: 1
+Example 3:
+Question: "ما هو عدد صفحات الكتاب؟"
+Predicted Answer: "الصورة لا تحتوي على عدد صفحات الكتاب."
+Ground Truth: "غير معروف"
+Score: 1
 
-Now, please evaluate the following:
-Question: {question}
-Predicted Answer: {pred_answer}
-True Answer: {true_answer}
-Evaluation: """
-    response = generate(prompt)
-    return response.strip()
+Now, for each new pair of sentences, analyze their semantic similarity and provide a score of 1 for similar meanings or 0 for different meanings. Always consider the context and potential variations in expressing the same concept.
+Question: "{question}"
+Predicted Answer: "{pred}"
+Ground Truth: "{gt}"
+Score: """
+        },
+    ]
 
-# Load the data
-path = "results_silma9b.json"
-with open(path, "r") as f:
-    data = json.load(f)
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        max_tokens=300,
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "answer_score",
+                    "description": "Provide a [0, 1] score to the semantic similarity between two sentences",
+                    "parameters": AnswerScore.model_json_schema(),
+                },
+            }
+        ],
+        tool_choice={"type": "function", "function": {"name": "answer_score"}},
+    )
 
-report = []
-for i in tqdm(range(len(data))):
-    row = data[i]
-    d = {}
-    d['index'] = row['index']
-    d['question'] = row['question']
-    d['pred_answer'] = row['pred_answer']
-    d['true_answer'] = row['answer']
-    d['evaluation'] = evaluate_answer(d['pred_answer'], d['true_answer'], d['question'])
-    report.append(d)
+    vqa_answer = AnswerScore.model_validate_json(
+        completion.choices[0].message.tool_calls[0].function.arguments
+    )
+    return {
+        'index': row['index'],
+        'question': question,
+        'pred_answer': pred,
+        'answer': gt,
+        'evaluation': vqa_answer.score
+    }
 
-correct_count = sum(1 for item in report if item['evaluation'].strip() == '1')
-total_count = len(report)
-accuracy = correct_count / total_count
+def process_chunk(chunk):
+    return [eval_gpt(row) for row in chunk]
 
-with open("results_silma9b.json", "w", encoding="utf-8") as f:
-    json.dump({
-        'results': report,
-        'accuracy': accuracy
-    }, f, ensure_ascii=False, indent=2)
+def main():
+    path = "results_gpt.json"
+    with open(path, "r") as f:
+        data = json.load(f)
 
-print(f"Evaluation complete. Accuracy: {accuracy:.2%}")
+    num_cores = mp.cpu_count()
+    chunk_size = len(data) // num_cores
+    chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
+    pool = mp.Pool(num_cores)
+    results = []
+    with tqdm(total=len(data)) as pbar:
+        for chunk_result in pool.imap_unordered(process_chunk, chunks):
+            results.extend(chunk_result)
+            pbar.update(len(chunk_result))
+
+    pool.close()
+    pool.join()
+
+    correct_count = sum(1 for item in results if item['evaluation'] == 1)
+    total_count = len(results)
+    accuracy = correct_count / total_count
+
+    results.sort(key=lambda x: x['index'])
+    with open("results_gpt.json", "w", encoding="utf-8") as f:
+        json.dump({
+            'results': results,
+            'accuracy': accuracy
+        }, f, ensure_ascii=False, indent=2)
+
+    print(f"Evaluation complete. Accuracy: {accuracy:.2%}")
+
+if __name__ == "__main__":
+    main()
