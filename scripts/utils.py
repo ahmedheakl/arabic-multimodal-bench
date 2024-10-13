@@ -1,5 +1,6 @@
 import pandas as pd 
 import ast
+import numpy as np
 arabic_letters = {
     'A': 'أ',
     'B': 'ب',
@@ -12,9 +13,11 @@ arabic_letters = {
     'I': 'ط',
     'J': 'ي',
     'K': 'ك',
+    'L': 'ل',
+    'M': 'م',
     'هـ': 'ه',
     'ا': 'أ'
-}   
+}
 
 def translate_numbers(text: str) -> str:
     english_to_arabic = {
@@ -74,44 +77,12 @@ def default_eval(pred: str, gt: str):
     gt = gt.strip()
     return pred == gt
 
-def iconqa_options_to_str(options_prompt):
-    option_prompt_str = ""
-    for i, option in enumerate(options_prompt):
-        option_choice = chr(ord("A") + i)
-        option_choice = arabic_letters[option_choice]
-        option_prompt_str += f"{option_choice}. {option}\n"
-
-    option_prompt_str = option_prompt_str.rstrip("\n")
-    return option_prompt_str
-
-iconqa_statement = "بالنظر إلى مجموعة من الصور وسؤال، يرجى تقديم الإجابة على السؤال.\n"
-iconqa_options_statement = "السؤال: {question}.\nالخيارات:\n{options}\nالرجاء الإجابة بحرف الخيار من الاختيارات المعطاة مباشرة."
-iconqa_freeform_statement = "السؤال: {question}.\nالرجاء الإجابة على السؤال باستخدام كلمة واحدة أو عبارة قصيرة."
 
 def iconqa_doc_to_text(doc):
-    question = doc["question"]
-    ques_type = doc["ques_type"]
-    options_prompt = []
+    return doc['question']
 
-    if ques_type == "choose_img":
-        options_prompt.append("The first image.")
-        options_prompt.append("The second image.")
-
-        options_str = iconqa_options_to_str(options_prompt)
-        full_prompt = f"{iconqa_statement}{iconqa_options_statement.format(question=question, options=options_str)}"
-
-    elif ques_type == "choose_txt":
-        choices = doc["choices"].split(",")
-        for i, choice in enumerate(choices):
-            options_prompt.append(f"{choice}")
-
-        options_str = iconqa_options_to_str(options_prompt)
-        full_prompt = f"{iconqa_statement}{iconqa_options_statement.format(question=question, options=options_str)}"
-
-    elif ques_type == "fill_in_blank":
-        full_prompt = f"{iconqa_statement}{iconqa_freeform_statement.format(question=question)}"
-
-    return full_prompt
+def iconqa_eval(pred, gt):
+    return mcq_eval(pred, gt)
 
 def mmmu_parse_options(options):
     option_letters = [arabic_letters[chr(ord("A") + i)] for i in range(len(options))]
@@ -327,3 +298,156 @@ def blink_doc_to_text(doc):
 
 def blink_eval(pred, gt):
     return mcq_eval(pred, gt)
+
+def examsv_doc_to_text(doc):
+    return doc['question']
+
+def examsv_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def chartqa_doc_to_text(doc):
+    return doc['question']
+
+def chartqa_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def mtvqa_doc_to_text(doc):
+    return doc['question']
+
+def create_one_query(problem):
+    demo_prompt = ""
+
+    question = problem["question"]
+    unit = problem["unit"]
+    choices = problem["choices"]
+    precision = problem["precision"]
+    question_type = problem["question_type"]
+    answer_type = problem["answer_type"]
+
+    if question_type == "multi_choice":
+        assert answer_type == "text"
+        hint_text = f"تلميح: يرجى الإجابة على السؤال وتقديم حرف الخيار الصحيح، مثل أ أو ب أو ج أو د، في النهاية."
+    else:
+        assert answer_type in ["integer", "float", "list"]
+        if answer_type == "integer":
+            hint_text = f"تلميح: يرجى الإجابة على السؤال الذي يتطلب إجابة بعدد صحيح وتقديم القيمة النهائية، مثل 1 أو 2 أو 3، في النهاية."
+
+        elif answer_type == "float" and precision == 1:
+            hint_text = f"تلميح: يرجى الإجابة على السؤال الذي يتطلب رقمًا عشريًا بمنزلة عشرية واحدة وتقديم القيمة النهائية، مثل 1.2 أو 1.3 أو 1.4، في النهاية."
+
+        elif answer_type == "float" and precision == 2:
+            hint_text = f"تلميح: يرجى الإجابة على السؤال الذي يتطلب رقمًا عشريًا بمنزلتين عشريتين وتقديم القيمة النهائية، مثل 1.23 أو 1.34 أو 1.45، في النهاية."
+
+        elif answer_type == "list":
+            hint_text = f"تلميح: يرجى الإجابة على السؤال الذي يتطلب قائمة بايثون كإجابة وتقديم القائمة النهائية، مثل [1, 2, 3] أو [1.2, 1.3, 1.4]، في النهاية."
+
+    hint_text = translate_numbers(hint_text)    
+
+    question_text = f"سؤال: {question}"
+    if unit:
+        question_text += f" (الوحدة: {unit})"
+
+    if choices and choices != 'None':
+        texts = ["الاختيارات:"]
+        choices = ast.literal_eval(choices.replace("' '", '", "'))
+        for i, choice in enumerate(choices):
+            texts.append(f"({arabic_letters[chr(ord('A')+i)]}) {choice}")
+        choices_text = "\n".join(texts)
+    else:
+        choices_text = ""
+
+
+    prompt = "الحل: "
+
+    elements = [question_text, choices_text, hint_text, prompt]
+    test_query = "\n".join([e for e in elements if e != ""])
+
+    query = demo_prompt + "\n\n" + test_query
+    query = query.strip()
+    return query
+
+def mathvista_doc_to_text(doc):
+    problem = {
+        "question_type": doc["question_type"],
+        "answer_type": doc["answer_type"],
+        "question": doc["question"],
+        "unit": doc["unit"] if "unit" in doc else "",
+        "choices": doc["choices"],
+        "answer": doc["answer"] if "answer" in doc else None,
+        "precision": doc["precision"] if "precision" in doc else 0,
+    }
+    query_prompt = create_one_query(problem)
+    return query_prompt
+
+
+def infographicsvqa_doc_to_text(doc):
+    return doc['question']
+
+def infographicsvqa_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def agrovqa_doc_to_text(doc):
+    return doc['question']
+
+def agrovqa_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def diagramsvqa_doc_to_text(doc):
+    return doc['question']
+
+def diagramsvqa_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def tablesvqavqa_doc_to_text(doc):
+    return doc['question']
+
+def tablesvqavqa_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def scienceqa_doc_to_text(doc):
+    context, question, choices = doc["hint"], doc["question"], doc["choices"]
+    choices = ast.literal_eval(choices)
+    len_choices = len(choices)
+    options = [arabic_letters[chr(ord("A") + i)] for i in range(len_choices)]
+    choices_str = "\n".join([f"{option}. {choice}" for option, choice in zip(options, choices)])
+    if context:
+        context = f"السياق: {context}\n"
+
+    post_prompt = "\n.أجب بحرف الخيار من الخيارات المعطاة مباشرة"
+    return f"{context}{question}\n{choices_str}{post_prompt}"
+
+def scienceqa_eval(pred, gt):
+    gt = arabic_letters[chr(ord('A') + gt)]
+    return mcq_eval(pred, gt)
+
+def ocrisi_doc_to_text(doc):
+    return doc['question']
+
+def cer(pred, gt):
+    d = np.zeros((len(gt) + 1, len(pred) + 1))
+    for i in range(len(gt) + 1):
+        d[i, 0] = i
+    for j in range(len(pred) + 1):
+        d[0, j] = j
+    
+    for i in range(1, len(gt) + 1):
+        for j in range(1, len(pred) + 1):
+            if gt[i-1] == pred[j-1]:
+                d[i, j] = d[i-1, j-1]
+            else:
+                substitution = d[i-1, j-1] + 1
+                insertion = d[i, j-1] + 1
+                deletion = d[i-1, j] + 1
+                d[i, j] = min(substitution, insertion, deletion)
+    
+    error = d[len(gt), len(pred)]
+    total_chars = len(gt)
+    cer = error / total_chars
+    
+    return cer
+
+
+def ocrisi_eval(pred: str, gt: str):
+    pred = pred.strip()
+    gt = gt.strip()
+    return cer(pred, gt) <= 0.1
