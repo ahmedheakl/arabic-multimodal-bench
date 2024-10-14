@@ -498,3 +498,21 @@ def culturevideovqa_doc_to_text(doc):
 
 def culturevideovqa_eval(pred, gt):
     return mcq_eval(pred, gt)
+
+
+def videomme_doc_to_text(doc):
+    prompt = """الترجمات النصية لهذا الفيديو مدرجة أدناه:
+{subtitles}
+اختر أفضل إجابة للسؤال التالي متعدد الخيارات بناءً على الفيديو. أجب فقط بالحرف (أ، ب، ج، أو د) للخيار الصحيح.
+{question}
+{options}
+أفضل إجابة هي:"""
+    subtitles = doc["subtitles"]
+    question = doc["question"]
+    options = doc["options"]
+    options_str = "\n".join([f"{option}" for i, option in enumerate(options)])
+    return prompt.format(subtitles=subtitles, question=question, options=options_str)
+
+def videomme_eval(pred, gt):
+    return mcq_eval(pred, gt)
+    
