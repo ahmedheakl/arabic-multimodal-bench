@@ -516,3 +516,6 @@ def videomme_doc_to_text(doc):
 def videomme_eval(pred, gt):
     return mcq_eval(pred, gt)
     
+def geochat_doc_to_text(doc):
+    pre_prompt = "أجب على السؤال التالي بكلمة أو جملة.\n"
+    return pre_prompt + doc['question']
