@@ -1,6 +1,7 @@
 import pandas as pd 
 import ast
 import numpy as np
+
 arabic_letters = {
     'A': 'أ',
     'B': 'ب',
@@ -15,6 +16,12 @@ arabic_letters = {
     'K': 'ك',
     'L': 'ل',
     'M': 'م',
+    'N': 'ن',
+    'O': 'ع',
+    'P': 'ف',
+    'Q': 'ص',
+    'R': 'ر',
+    'S': 'س',
     'هـ': 'ه',
     'ا': 'أ'
 }
@@ -126,7 +133,7 @@ def vqav2_doc_to_text(doc):
     post_prompt = "\nأجب على السؤال باستخدام كلمة أو عبارة واحدة."
     return f"{doc['question']}{post_prompt}"
 
-def vizwiz_vqa_doc_to_text(doc):
+def vizwiz_doc_to_text(doc):
     post_prompt = "\nعندما تكون المعلومات المقدمة غير كافية، أجب بـ 'لا يمكن الإجابة'.\nأجب عن السؤال باستخدام كلمة واحدة أو عبارة قصيرة."
     text = f"{doc['question'].capitalize()}{post_prompt}"
     return text
@@ -173,14 +180,21 @@ def diagramsMMMU_eval(pred, gt):
     gt = translate_numbers(gt)
     return gt in pred
 
-def diagramsmmmu_doc_to_text(doc):
+def diagramsMMMU_doc_to_text(doc):
     return mmmu_doc_to_text(doc)
 
-def medicalmmmu_eval(pred, gt):
+def medicalMMMU_eval(pred, gt):
     return mcq_eval(pred, gt)
 
-def medicalmmmu_doc_to_text(doc):
+def medicalMMMU_doc_to_text(doc):
     return mmmu_doc_to_text(doc)
+
+def medicalMMMUPro_eval(pred, gt):
+    return mcq_eval(pred, gt)
+
+def medicalMMMUPro_doc_to_text(doc):
+    return mmmu_doc_to_text(doc)
+
 
 def mmt_doc_to_text(doc):
     question_text = "سؤال: <image>\n" + doc["question"].strip()
@@ -398,10 +412,10 @@ def diagramsvqa_doc_to_text(doc):
 def diagramsvqa_eval(pred, gt):
     return mcq_eval(pred, gt)
 
-def tablesvqavqa_doc_to_text(doc):
+def tablesvqa_doc_to_text(doc):
     return doc['question']
 
-def tablesvqavqa_eval(pred, gt):
+def tablesvqa_eval(pred, gt):
     return mcq_eval(pred, gt)
 
 def scienceqa_doc_to_text(doc):
