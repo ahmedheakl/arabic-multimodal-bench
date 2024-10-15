@@ -192,8 +192,19 @@ def medicalMMMU_doc_to_text(doc):
 def medicalMMMUPro_eval(pred, gt):
     return mcq_eval(pred, gt)
 
+def medicalMMMUPro_parse_options(options):
+    option_letters = [arabic_letters[chr(ord("A") + i)] for i in range(len(options))]
+    choices_str = "\n".join([f"{option_letter}. {option}" for option_letter, option in zip(option_letters, options)])
+    return choices_str
+
+
 def medicalMMMUPro_doc_to_text(doc):
-    return mmmu_doc_to_text(doc)
+    post_prompt="أجب بحرف الخيار من الخيارات المعطاة مباشرة."
+    question = doc["question"]
+    # Weirdly, data["options"] is a string in MMMU Huggingface dataset
+    parsed_options = medicalMMMUPro_parse_options(ast.literal_eval(doc["options"].replace("،", ",")))
+    question = f"{question}\n{parsed_options}\n\n{post_prompt}"
+    return question
 
 
 def mmt_doc_to_text(doc):
