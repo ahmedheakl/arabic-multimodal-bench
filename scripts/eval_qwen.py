@@ -78,7 +78,6 @@ def process_row(row: pd.Series, fn: Callable, fn_images: Callable) -> dict:
     try:
         d['index'] = i
         images = fn_images(row)
-        print(images)
         d['pred_answer'] = generate_qwen(fn(row), images)
         d['answer'] = row[answer_field]
         d['question'] = fn(row)
