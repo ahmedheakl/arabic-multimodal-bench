@@ -24,13 +24,13 @@ def handle_images1(row: pd.Series) -> List[str]:
     return [row['image']['bytes']]
 
 def handle_images2(row: pd.Series) -> List[str]:
-    return [row.get(f"image_{i}", None) for i in range(9) if row.get(f"image_{i}", None) is not None]
+    return [row.get(f"image_{i}", None)['bytes'] for i in range(9) if row.get(f"image_{i}", None) is not None]
 
 def handle_images3(row: pd.Series) -> List[str]:
     return [row['image'][0]['bytes']]
 
 def save_images(images: List[str]):
-    os.mkdirs("temp", exist_ok=True)
+    os.makedirs("temp", exist_ok=True)
     for i, image in enumerate(images):
         if image is not None:
             with open(f"temp/image{i}.jpg", "wb") as f:
@@ -78,6 +78,7 @@ def process_row(row: pd.Series, fn: Callable, fn_images: Callable) -> dict:
     try:
         d['index'] = i
         images = fn_images(row)
+        print(images)
         d['pred_answer'] = generate_qwen(fn(row), images)
         d['answer'] = row[answer_field]
         d['question'] = fn(row)
